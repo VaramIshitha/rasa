@@ -5,13 +5,15 @@ from rasa.nlu.constants import NUMBER_OF_SUB_TOKENS
 from rasa.nlu.model import Metadata
 from rasa.nlu.tokenizers.tokenizer import Token
 from rasa.nlu.tokenizers.whitespace_tokenizer import WhitespaceTokenizer
-from rasa.nlu.training_data import Message
+from rasa.shared.nlu.training_data.message import Message
 from rasa.utils import common
 import rasa.utils.train_utils as train_utils
 import tensorflow as tf
 
 
-TF_HUB_MODULE_URL = "http://models.poly-ai.com/convert/v1/model.tar.gz"
+TF_HUB_MODULE_URL = (
+    "https://github.com/PolyAI-LDN/polyai-models/releases/download/v1.0/model.tar.gz"
+)
 
 
 class ConveRTTokenizer(WhitespaceTokenizer):
@@ -26,8 +28,10 @@ class ConveRTTokenizer(WhitespaceTokenizer):
         "intent_tokenization_flag": False,
         # Symbol on which intent should be split
         "intent_split_symbol": "_",
-        # Text will be tokenized with case sensitive as default
-        "case_sensitive": True,
+        # Regular expression to detect tokens
+        "token_pattern": None,
+        # Remote URL of hosted model
+        "model_url": TF_HUB_MODULE_URL,
     }
 
     def __init__(self, component_config: Dict[Text, Any] = None) -> None:
@@ -35,7 +39,9 @@ class ConveRTTokenizer(WhitespaceTokenizer):
 
         super().__init__(component_config)
 
-        self.module = train_utils.load_tf_hub_model(TF_HUB_MODULE_URL)
+        self.model_url = self.component_config.get("model_url", TF_HUB_MODULE_URL)
+
+        self.module = train_utils.load_tf_hub_model(self.model_url)
 
         self.tokenize_signature = self.module.signatures["tokenize"]
 
@@ -82,7 +88,8 @@ class ConveRTTokenizer(WhitespaceTokenizer):
 
         return tokens_out
 
-    def _clean_tokens(self, tokens: List[bytes]):
+    @staticmethod
+    def _clean_tokens(tokens: List[bytes]) -> List[Text]:
         """Encode tokens and remove special char added by ConveRT."""
 
         tokens = [string.decode("utf-8").replace("﹏", "") for string in tokens]

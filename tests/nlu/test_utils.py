@@ -4,8 +4,13 @@ import pickle
 import pytest
 import tempfile
 import shutil
+
+from rasa.shared.exceptions import RasaException
+import rasa.shared.nlu.training_data.message
+import rasa.shared.utils.io
 import rasa.utils.io as io_utils
 from rasa.nlu import utils
+from pathlib import Path
 
 
 @pytest.fixture(scope="function")
@@ -32,19 +37,19 @@ def fake_model_dir(empty_model_dir):
 
 def test_relative_normpath():
     test_file = "/my/test/path/file.txt"
-    assert utils.relative_normpath(test_file, "/my/test") == "path/file.txt"
+    assert utils.relative_normpath(test_file, "/my/test") == Path("path/file.txt")
     assert utils.relative_normpath(None, "/my/test") is None
 
 
 def test_list_files_invalid_resource():
     with pytest.raises(ValueError) as execinfo:
-        io_utils.list_files(None)
+        rasa.shared.utils.io.list_files(None)
     assert "must be a string type" in str(execinfo.value)
 
 
 def test_list_files_non_existing_dir():
     with pytest.raises(ValueError) as execinfo:
-        io_utils.list_files("my/made_up/path")
+        rasa.shared.utils.io.list_files("my/made_up/path")
     assert "Could not locate the resource" in str(execinfo.value)
 
 
@@ -54,17 +59,12 @@ def test_list_files_ignores_hidden_files(tmpdir):
     # create a normal file
     normal_file = os.path.join(tmpdir.strpath, "normal_file")
     open(normal_file, "a").close()
-    assert io_utils.list_files(tmpdir.strpath) == [normal_file]
+    assert rasa.shared.utils.io.list_files(tmpdir.strpath) == [normal_file]
 
 
 def test_creation_of_existing_dir(tmpdir):
     # makes sure there is no exception
-    assert io_utils.create_directory(tmpdir.strpath) is None
-
-
-def test_ordered():
-    target = {"a": [1, 3, 2], "c": "a", "b": 1}
-    assert utils.ordered(target) == [("a", [1, 2, 3]), ("b", 1), ("c", "a")]
+    assert rasa.shared.utils.io.create_directory(tmpdir.strpath) is None
 
 
 def test_empty_is_model_dir(empty_model_dir):
@@ -97,7 +97,7 @@ def test_remove_model_invalid(empty_model_dir):
     test_file_path = os.path.join(empty_model_dir, test_file)
     utils.write_to_file(test_file_path, test_content)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RasaException):
         utils.remove_model(empty_model_dir)
 
     os.remove(test_file_path)
